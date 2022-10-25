@@ -13,39 +13,96 @@ namespace CentralPackageManagementMigrator.Runner
 {
     public class CliRunner
     {
+        private const string GLOBAL_PACKAGES_PATH = "Directory.Packages.props";
+
         public Task RunCliAsync(CliOptions options)
         {
             Dictionary<string, HashSet<string>> globalPackagesToVersions = new Dictionary<string, HashSet<string>>();
             var projects = SolutionFile.Parse(options.SolutionPath).ProjectsInOrder.Where(p => p.AbsolutePath.EndsWith(".csproj")).ToList();
-
+            var projectElements = new List<(XElement ProjElem, string ProjPath)>();
             foreach (var project in projects)
             {
-                var prj = XElement.Load(project.AbsolutePath);
+                projectElements.Add(ParseProjectPackages(globalPackagesToVersions, project));
+            }
+            var needConsolidation = globalPackagesToVersions.Where(pack => pack.Value.Count > 1).ToList();
 
-                var packageReferenceElements = prj.Elements("ItemGroup").SelectMany(e => e.Elements("PackageReference")).ToList();
+            if (needConsolidation.Count > 0)
+            {
+                var packages = needConsolidation.Select(nc => nc.Key).Aggregate((s1, s2) => s1 + "," + s2);
+                throw new ArgumentException($"Error: Need consolidation for packages:{packages}");
+            }
 
-                var packageReferences = packageReferenceElements
-                    .Where(elem => elem.Attribute("Include") != null)
-                    .Select(e => (Id: e.Attribute("Include").Value, Version: e.Attribute("Version")?.Value)).ToList();
-                
+            //Save Projects
+            projectElements.ForEach(pe => pe.ProjElem.Save(pe.ProjPath));
 
-                foreach (var packageReference in packageReferences)
+            GenerateGlobalPackages(options, globalPackagesToVersions);
+
+            return Task.CompletedTask;
+        }
+
+        private static void GenerateGlobalPackages(CliOptions options, Dictionary<string, HashSet<string>> globalPackagesToVersions)
+        {
+            var solutionDir = Path.GetDirectoryName(options.SolutionPath);
+            var gloabalPackagePath = Path.Combine(solutionDir, GLOBAL_PACKAGES_PATH);
+
+            XElement gloabalPackageElements = XElement.Parse(@"<Project>
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+  <ItemGroup>
+  </ItemGroup>
+</Project>");
+
+
+            var itemGroupElm = gloabalPackageElements.Elements("ItemGroup").Single();
+            foreach (var package in globalPackagesToVersions)
+            {
+                var packageReferenceElm = new XElement("PackageVersion");
+                packageReferenceElm.Add(new XAttribute("Include", package.Key));
+                packageReferenceElm.Add(new XAttribute("Version", package.Value.First()));
+                itemGroupElm.Add(packageReferenceElm);
+            }
+
+            gloabalPackageElements.Save(gloabalPackagePath);
+        }
+
+        private static (XElement ProjElem, string ProjPath) ParseProjectPackages(Dictionary<string, HashSet<string>> globalPackagesToVersions, ProjectInSolution project)
+        {
+            var prj = XElement.Load(project.AbsolutePath);
+
+            var projName = Path.GetFileNameWithoutExtension(project.AbsolutePath);
+
+            var packageReferenceElements = prj.Elements("ItemGroup").SelectMany(e => e.Elements("PackageReference")).ToList();
+
+            var packageReferences = packageReferenceElements
+                .Where(elem => elem.Attribute("Include") != null)
+                .Select(e => (Id: e.Attribute("Include").Value, Version: e.Attribute("Version") != null ? e.Attribute("Version").Value : e.Attribute("version").Value)).ToList();
+
+            foreach (var packageReferenceElement in packageReferenceElements)
+            {
+                if (packageReferenceElement.Attribute("Version") != null)
                 {
-                    if (!globalPackagesToVersions.ContainsKey(packageReference.Id))
-                    {
-                        globalPackagesToVersions[packageReference.Id] = new HashSet<string>();
-                    }
-                    globalPackagesToVersions[packageReference.Id].Add(packageReference.Version);
+                    packageReferenceElement.Attribute("Version").Remove();
+                }
+                else
+                {
+                    packageReferenceElement.Attribute("version").Remove();
                 }
             }
 
-            var needConsolidation = globalPackagesToVersions.Where(pack => pack.Value.Count > 0).ToList();
-
-            if(needConsolidation.Count > 0)
+            foreach (var packageReference in packageReferences)
             {
-                throw new ArgumentException("need consolidation");
+                if (packageReference.Version == null)
+                {
+                    Console.WriteLine(packageReference.Id);
+                }
+                if (!globalPackagesToVersions.ContainsKey(packageReference.Id))
+                {
+                    globalPackagesToVersions[packageReference.Id] = new HashSet<string>();
+                }
+                globalPackagesToVersions[packageReference.Id].Add(packageReference.Version);
             }
-            return Task.CompletedTask;
+            return (prj, project.AbsolutePath);
         }
     }
 
