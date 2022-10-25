@@ -13,7 +13,8 @@ namespace CentralPackageManagementMigrator.Runner
 {
     public class CliRunner
     {
-        private const string GLOBAL_PACKAGES_PATH = "Directory.Packages.props";
+        private const string GLOBAL_PACKAGES_FILE_NAME = "Directory.Packages.props";
+        private const string GLOBAL_BUILD_FILE_NAME = "Directory.Build.props";
 
         public Task RunCliAsync(CliOptions options)
         {
@@ -22,8 +23,17 @@ namespace CentralPackageManagementMigrator.Runner
             var projectElements = new List<(XElement ProjElem, string ProjPath)>();
             foreach (var project in projects)
             {
-                projectElements.Add(ParseProjectPackages(globalPackagesToVersions, project));
+                projectElements.Add(ParseProjectPackages(globalPackagesToVersions, project.AbsolutePath));
             }
+
+            var solutionDir = Path.GetDirectoryName(options.SolutionPath);
+
+            string[] globalBuildFiles = Directory.GetFiles(solutionDir, GLOBAL_BUILD_FILE_NAME, SearchOption.AllDirectories);
+            foreach (var globalBuildFile in globalBuildFiles)
+            {
+                projectElements.Add(ParseProjectPackages(globalPackagesToVersions, globalBuildFile));
+            }
+
             var needConsolidation = globalPackagesToVersions.Where(pack => pack.Value.Count > 1).ToList();
 
             if (needConsolidation.Count > 0)
@@ -43,7 +53,7 @@ namespace CentralPackageManagementMigrator.Runner
         private static void GenerateGlobalPackages(CliOptions options, Dictionary<string, HashSet<string>> globalPackagesToVersions)
         {
             var solutionDir = Path.GetDirectoryName(options.SolutionPath);
-            var gloabalPackagePath = Path.Combine(solutionDir, GLOBAL_PACKAGES_PATH);
+            var gloabalPackagePath = Path.Combine(solutionDir, GLOBAL_PACKAGES_FILE_NAME);
 
             XElement gloabalPackageElements = XElement.Parse(@"<Project>
   <PropertyGroup>
@@ -66,11 +76,9 @@ namespace CentralPackageManagementMigrator.Runner
             gloabalPackageElements.Save(gloabalPackagePath);
         }
 
-        private static (XElement ProjElem, string ProjPath) ParseProjectPackages(Dictionary<string, HashSet<string>> globalPackagesToVersions, ProjectInSolution project)
+        private static (XElement ProjElem, string ProjPath) ParseProjectPackages(Dictionary<string, HashSet<string>> globalPackagesToVersions, string projectAbsolutePath)
         {
-            var prj = XElement.Load(project.AbsolutePath);
-
-            var projName = Path.GetFileNameWithoutExtension(project.AbsolutePath);
+            var prj = XElement.Load(projectAbsolutePath);
 
             var packageReferenceElements = prj.Elements("ItemGroup").SelectMany(e => e.Elements("PackageReference")).ToList();
 
@@ -102,7 +110,7 @@ namespace CentralPackageManagementMigrator.Runner
                 }
                 globalPackagesToVersions[packageReference.Id].Add(packageReference.Version);
             }
-            return (prj, project.AbsolutePath);
+            return (prj, projectAbsolutePath);
         }
     }
 
