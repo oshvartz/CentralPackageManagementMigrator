@@ -8,6 +8,8 @@ using System.Text;
 using System.Threading.Tasks;
 using Microsoft.Build.Construction;
 using System.Xml.Linq;
+using Microsoft.Extensions.Logging;
+using Microsoft.Build.Evaluation;
 
 namespace CentralPackageManagementMigrator.Runner
 {
@@ -15,39 +17,57 @@ namespace CentralPackageManagementMigrator.Runner
     {
         private const string GLOBAL_PACKAGES_FILE_NAME = "Directory.Packages.props";
         private const string GLOBAL_BUILD_FILE_NAME = "Directory.Build.props";
+        private readonly ILogger<CliRunner> _logger;
+
+        public CliRunner(ILogger<CliRunner> logger)
+        {
+            _logger = logger;
+        }
 
         public Task RunCliAsync(CliOptions options)
         {
-            Dictionary<string, HashSet<string>> globalPackagesToVersions = new Dictionary<string, HashSet<string>>();
-            var projects = SolutionFile.Parse(options.SolutionPath).ProjectsInOrder.Where(p => p.AbsolutePath.EndsWith(".csproj")).ToList();
-            var projectElements = new List<(XElement ProjElem, string ProjPath)>();
-            foreach (var project in projects)
+            try
             {
-                projectElements.Add(ParseProjectPackages(globalPackagesToVersions, project.AbsolutePath));
+                Dictionary<string, HashSet<string>> globalPackagesToVersions = new Dictionary<string, HashSet<string>>();
+                var projects = SolutionFile.Parse(options.SolutionPath).ProjectsInOrder.Where(p => p.AbsolutePath.EndsWith(".csproj")).ToList();
+                _logger.LogInformation($"found {projects.Count} projects to scan");
+                var projectElements = new List<(XElement ProjElem, string ProjPath)>();
+                foreach (var project in projects)
+                {
+                    _logger.LogInformation($"Parsing {project.ProjectName}");
+                    projectElements.Add(ParseProjectPackages(globalPackagesToVersions, project.AbsolutePath));
+                }
+
+                var solutionDir = Path.GetDirectoryName(options.SolutionPath);
+
+                string[] globalBuildFiles = Directory.GetFiles(solutionDir, GLOBAL_BUILD_FILE_NAME, SearchOption.AllDirectories);
+                foreach (var globalBuildFile in globalBuildFiles)
+                {
+                    _logger.LogInformation($"Parsing {globalBuildFile}");
+                    projectElements.Add(ParseProjectPackages(globalPackagesToVersions, globalBuildFile));
+                }
+
+                var needConsolidation = globalPackagesToVersions.Where(pack => pack.Value.Count > 1).ToList();
+
+                if (needConsolidation.Count > 0)
+                {
+                    var packages = needConsolidation.Select(nc => nc.Key).Aggregate((s1, s2) => s1 + "," + s2);
+                    throw new ArgumentException($"Error: Need consolidation for packages:{packages}");
+                }
+                _logger.LogInformation($"Saving projects");
+                //Save Projects
+                projectElements.ForEach(pe => pe.ProjElem.Save(pe.ProjPath));
+
+                _logger.LogInformation($"Generating Global Packages File");
+                GenerateGlobalPackages(options, globalPackagesToVersions);
+                _logger.LogInformation($"Done");
             }
-
-            var solutionDir = Path.GetDirectoryName(options.SolutionPath);
-
-            string[] globalBuildFiles = Directory.GetFiles(solutionDir, GLOBAL_BUILD_FILE_NAME, SearchOption.AllDirectories);
-            foreach (var globalBuildFile in globalBuildFiles)
+            catch (Exception ex)
             {
-                projectElements.Add(ParseProjectPackages(globalPackagesToVersions, globalBuildFile));
+                _logger.LogError($"Migration Failed:{ex.Message}", ex);
             }
-
-            var needConsolidation = globalPackagesToVersions.Where(pack => pack.Value.Count > 1).ToList();
-
-            if (needConsolidation.Count > 0)
-            {
-                var packages = needConsolidation.Select(nc => nc.Key).Aggregate((s1, s2) => s1 + "," + s2);
-                throw new ArgumentException($"Error: Need consolidation for packages:{packages}");
-            }
-
-            //Save Projects
-            projectElements.ForEach(pe => pe.ProjElem.Save(pe.ProjPath));
-
-            GenerateGlobalPackages(options, globalPackagesToVersions);
-
             return Task.CompletedTask;
+
         }
 
         private static void GenerateGlobalPackages(CliOptions options, Dictionary<string, HashSet<string>> globalPackagesToVersions)
