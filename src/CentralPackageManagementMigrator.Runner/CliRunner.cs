@@ -29,7 +29,7 @@ namespace CentralPackageManagementMigrator.Runner
             try
             {
                 Dictionary<string, HashSet<string>> globalPackagesToVersions = new Dictionary<string, HashSet<string>>();
-                var projects = SolutionFile.Parse(options.SolutionPath).ProjectsInOrder.Where(p => p.AbsolutePath.EndsWith(".csproj")).ToList();
+                var projects = SolutionFile.Parse(options.SolutionPath).ProjectsInOrder.Where(p => p.AbsolutePath.EndsWith(".csproj") || p.AbsolutePath.EndsWith(".sfproj")).ToList();
                 _logger.LogInformation($"found {projects.Count} projects to scan");
                 var projectElements = new List<(XElement ProjElem, string ProjPath)>();
                 foreach (var project in projects)
@@ -100,7 +100,7 @@ namespace CentralPackageManagementMigrator.Runner
         {
             var prj = XElement.Load(projectAbsolutePath);
 
-            var packageReferenceElements = prj.Elements("ItemGroup").SelectMany(e => e.Elements("PackageReference")).ToList();
+            var packageReferenceElements = prj.Elements().Where(e => e.Name.LocalName =="ItemGroup").SelectMany(e => e.Elements().Where(e => e.Name.LocalName == "PackageReference")).ToList();
 
             var packageReferences = packageReferenceElements
                 .Where(elem => elem.Attribute("Include") != null)
@@ -120,10 +120,6 @@ namespace CentralPackageManagementMigrator.Runner
 
             foreach (var packageReference in packageReferences)
             {
-                if (packageReference.Version == null)
-                {
-                    Console.WriteLine(packageReference.Id);
-                }
                 if (!globalPackagesToVersions.ContainsKey(packageReference.Id))
                 {
                     globalPackagesToVersions[packageReference.Id] = new HashSet<string>();
