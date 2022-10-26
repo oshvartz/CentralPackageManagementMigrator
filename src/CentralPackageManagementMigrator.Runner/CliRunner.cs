@@ -17,6 +17,7 @@ namespace CentralPackageManagementMigrator.Runner
     {
         private const string GLOBAL_PACKAGES_FILE_NAME = "Directory.Packages.props";
         private const string GLOBAL_BUILD_FILE_NAME = "Directory.Build.props";
+        private const string NUGET_CONFIG_FILE_NAME = "NuGet.Config";
         private readonly ILogger<CliRunner> _logger;
 
         public CliRunner(ILogger<CliRunner> logger)
@@ -60,6 +61,10 @@ namespace CentralPackageManagementMigrator.Runner
 
                 _logger.LogInformation($"Generating Global Packages File");
                 GenerateGlobalPackages(options, globalPackagesToVersions);
+
+                _logger.LogInformation($"Add Source Mapping to nuget.config");
+                AddSourceMappingToNugetConfig(options);
+
                 _logger.LogInformation($"Done");
             }
             catch (Exception ex)
@@ -68,6 +73,42 @@ namespace CentralPackageManagementMigrator.Runner
             }
             return Task.CompletedTask;
 
+        }
+
+        private void AddSourceMappingToNugetConfig(CliOptions options)
+        {
+            var solutionDir = Path.GetDirectoryName(options.SolutionPath);
+            string[] nugetConfigFiles = Directory.GetFiles(solutionDir, NUGET_CONFIG_FILE_NAME, SearchOption.TopDirectoryOnly);
+            if(nugetConfigFiles.Length != 1)
+            {
+                _logger.LogWarning("Didn't find one nuget.config");
+                return;
+            }
+            var nugetConfigFile = nugetConfigFiles[0];
+
+            var nugetConfElem = XElement.Load(nugetConfigFile);
+
+            var sources = nugetConfElem.Elements().Where(e => e.Name.LocalName == "packageSources").Single().Elements().Where(e => e.Name == "add").ToList();
+
+            if(sources.Count != 1)
+            {
+                _logger.LogWarning("Cannot add source mapping you should do it maunally");
+                return;
+            }
+
+            var sourceKey = sources
+            .Single().Attribute("key").Value;
+
+            XElement packageSourceMappingElement = XElement.Parse(@$"<packageSourceMapping>
+    <packageSource key=""{sourceKey}"">
+      <package pattern=""*"" />
+    </packageSource>
+  </packageSourceMapping>");
+
+           
+            nugetConfElem.Add(packageSourceMappingElement);
+
+            nugetConfElem.Save(nugetConfigFile);
         }
 
         private static void GenerateGlobalPackages(CliOptions options, Dictionary<string, HashSet<string>> globalPackagesToVersions)

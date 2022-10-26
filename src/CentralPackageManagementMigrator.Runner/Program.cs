@@ -7,11 +7,12 @@ using Microsoft.Extensions.Logging;
 var serviceProvider = new ServiceCollection()
     .AddLogging((loggingBuilder) => loggingBuilder
         .SetMinimumLevel(LogLevel.Trace)
-        .AddSimpleConsole(options =>
-        {
-            options.SingleLine = true;
-            options.TimestampFormat = "[hh:mm:ss] ";
-        }))
+        .AddSimpleConsole()//options =>
+        //{
+        //    options.SingleLine = true;
+        //    options.TimestampFormat = "[hh:mm:ss] ";
+//        })
+)
     .AddSingleton<CliRunner>()
     .BuildServiceProvider();
 
