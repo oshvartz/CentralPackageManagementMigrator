@@ -8,8 +8,11 @@ learn about it [Central Package Management](https://learn.microsoft.com/en-us/nu
 
 
 ## How To Run
-Just execute the tool passing solution file
+Install the dotnet tool:
+```
+dotnet tool install --global CentralPackageManagementMigrator.Runner
+```
 
 ```
-CentralPackageManagementMigrator.Runner -s <full path to solution file>
+CpmMigrator -s <full path to solution file>
 ```
