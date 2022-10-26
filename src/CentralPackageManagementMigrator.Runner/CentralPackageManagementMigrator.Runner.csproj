@@ -9,9 +9,15 @@
 		<PackAsTool>true</PackAsTool>
 		<ToolCommandName>CpmMigrator</ToolCommandName>
 		<Version>0.1.0</Version>
-		<Authors>ofshvartz</Authors>
-		<Description>Tool to migrate .net project to use Central Package Management</Description>
+		<Authors>oshvartz</Authors>
+		<Owner>oshvartz</Owner>
+		<Description>Tool to migrate solution to use Central Package Management</Description>
 		<Title>CentralPackageManagementMigrator</Title>
+		<PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
+		<RepositoryUrl>https://github.com/oshvartz/CentralPackageManagementMigrator.git</RepositoryUrl>
+		<RepositoryType>git</RepositoryType>
+		<ProjectUrl>https://github.com/oshvartz/CentralPackageManagementMigrator</ProjectUrl>
+		<Tags>nuget</Tags>
 	</PropertyGroup>
 
 
