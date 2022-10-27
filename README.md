@@ -4,7 +4,7 @@ learn about it [Central Package Management](https://learn.microsoft.com/en-us/nu
 
 
 
-
+ [![NuGet](https://img.shields.io/nuget/v/CentralPackageManagementMigrator.Runner.svg)](https://www.nuget.org/packages/CentralPackageManagementMigrator.Runner/)
 
 
 ## How To Run
