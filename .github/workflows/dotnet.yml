@@ -22,7 +22,7 @@ jobs:
       run: dotnet build -c Release 
     - name: Generate a NuGet package
       run: dotnet pack --no-build -c Release -o .
-    - name: Push to GitHub package registry
+    - name: Push to Nuget.org package registry
       if: github.ref == 'refs/heads/main'
-      run: nuget push **\*.nupkg -Source 'https://api.nuget.org/v3/index.json' -ApiKey ${{secrets.NUGET_KEY}}
+      run: nuget push **\*.nupkg -Source 'https://api.nuget.org/v3/index.json' -ApiKey ${{secrets.NUGET_KEY}} -SkipDuplicate
 
