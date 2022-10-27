@@ -57,7 +57,7 @@ namespace CentralPackageManagementMigrator.Runner
                 }
                 _logger.LogInformation($"Saving projects");
                 //Save Projects
-                projectElements.ForEach(pe => pe.ProjElem.Save(pe.ProjPath));
+                projectElements.ForEach(pe => pe.ProjElem.SaveWithoutXmlDeclaration(pe.ProjPath));
 
                 _logger.LogInformation($"Generating Global Packages File");
                 GenerateGlobalPackages(options, globalPackagesToVersions);
@@ -108,7 +108,7 @@ namespace CentralPackageManagementMigrator.Runner
            
             nugetConfElem.Add(packageSourceMappingElement);
 
-            nugetConfElem.Save(nugetConfigFile);
+            nugetConfElem.SaveWithoutXmlDeclaration(nugetConfigFile);
         }
 
         private static void GenerateGlobalPackages(CliOptions options, Dictionary<string, HashSet<string>> globalPackagesToVersions)
@@ -134,7 +134,7 @@ namespace CentralPackageManagementMigrator.Runner
                 itemGroupElm.Add(packageReferenceElm);
             }
 
-            gloabalPackageElements.Save(gloabalPackagePath);
+            gloabalPackageElements.SaveWithoutXmlDeclaration(gloabalPackagePath);
         }
 
         private static (XElement ProjElem, string ProjPath) ParseProjectPackages(Dictionary<string, HashSet<string>> globalPackagesToVersions, string projectAbsolutePath)
@@ -169,7 +169,10 @@ namespace CentralPackageManagementMigrator.Runner
             }
             return (prj, projectAbsolutePath);
         }
+
     }
+
+    
 
     public class CliOptions
     {

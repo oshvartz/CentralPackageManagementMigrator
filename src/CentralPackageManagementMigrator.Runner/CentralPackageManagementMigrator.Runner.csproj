@@ -8,7 +8,7 @@
 		<AssemblyName>CentralPackageManagementMigrator.Runner</AssemblyName>
 		<PackAsTool>true</PackAsTool>
 		<ToolCommandName>CpmMigrator</ToolCommandName>
-		<Version>0.1.0</Version>
+		<Version>0.1.1</Version>
 		<Authors>oshvartz</Authors>
 		<Owner>oshvartz</Owner>
 		<Description>Tool to migrate solution to use Central Package Management</Description>
