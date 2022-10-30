@@ -1,22 +1,12 @@
-﻿using CommandLine.Text;
-using CommandLine;
-using Microsoft.Extensions.Options;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Microsoft.Build.Construction;
+﻿using CommandLine;
 using System.Xml.Linq;
 using Microsoft.Extensions.Logging;
-using Microsoft.Build.Evaluation;
 
 namespace CentralPackageManagementMigrator.Runner
 {
     public class CliRunner
     {
         private const string GLOBAL_PACKAGES_FILE_NAME = "Directory.Packages.props";
-        private const string GLOBAL_BUILD_FILE_NAME = "Directory.Build.props";
         private const string NUGET_CONFIG_FILE_NAME = "NuGet.Config";
         private readonly ILogger<CliRunner> _logger;
 
@@ -30,22 +20,19 @@ namespace CentralPackageManagementMigrator.Runner
             try
             {
                 Dictionary<string, HashSet<string>> globalPackagesToVersions = new Dictionary<string, HashSet<string>>();
-                var projects = SolutionFile.Parse(options.SolutionPath).ProjectsInOrder.Where(p => p.AbsolutePath.EndsWith(".csproj") || p.AbsolutePath.EndsWith(".sfproj")).ToList();
-                _logger.LogInformation($"found {projects.Count} projects to scan");
-                var projectElements = new List<(XElement ProjElem, string ProjPath)>();
-                foreach (var project in projects)
-                {
-                    _logger.LogInformation($"Parsing {project.ProjectName}");
-                    projectElements.Add(ParseProjectPackages(globalPackagesToVersions, project.AbsolutePath));
-                }
 
                 var solutionDir = Path.GetDirectoryName(options.SolutionPath);
+                var patterns = options.ProjectPatterns ?? new string[] { };
+                patterns = patterns.Union(new[] { "*.csproj" }).Distinct().ToList();
 
-                string[] globalBuildFiles = Directory.GetFiles(solutionDir, GLOBAL_BUILD_FILE_NAME, SearchOption.AllDirectories);
-                foreach (var globalBuildFile in globalBuildFiles)
+                var projFiles = patterns.SelectMany(pattern => Directory.GetFiles(solutionDir, pattern, SearchOption.AllDirectories)).ToArray();
+
+                _logger.LogInformation($"found {projFiles.Length} projects to scan");
+                var projectElements = new List<(XElement ProjElem, string ProjPath)>();
+                foreach (var projectFile in projFiles)
                 {
-                    _logger.LogInformation($"Parsing {globalBuildFile}");
-                    projectElements.Add(ParseProjectPackages(globalPackagesToVersions, globalBuildFile));
+                    _logger.LogInformation($"Parsing {Path.GetFileName(projectFile)}");
+                    projectElements.Add(ParseProjectPackages(globalPackagesToVersions, projectFile));
                 }
 
                 var needConsolidation = globalPackagesToVersions.Where(pack => pack.Value.Count > 1).ToList();
@@ -62,8 +49,11 @@ namespace CentralPackageManagementMigrator.Runner
                 _logger.LogInformation($"Generating Global Packages File");
                 GenerateGlobalPackages(options, globalPackagesToVersions);
 
-                _logger.LogInformation($"Add Source Mapping to nuget.config");
-                AddSourceMappingToNugetConfig(options);
+                if (options.AddSourceMappingsToNugetConfig)
+                {
+                    _logger.LogInformation($"Add Source Mapping to nuget.config");
+                    AddSourceMappingToNugetConfig(options);
+                }
 
                 _logger.LogInformation($"Done");
             }
@@ -79,7 +69,7 @@ namespace CentralPackageManagementMigrator.Runner
         {
             var solutionDir = Path.GetDirectoryName(options.SolutionPath);
             string[] nugetConfigFiles = Directory.GetFiles(solutionDir, NUGET_CONFIG_FILE_NAME, SearchOption.TopDirectoryOnly);
-            if(nugetConfigFiles.Length != 1)
+            if (nugetConfigFiles.Length != 1)
             {
                 _logger.LogWarning("Didn't find one nuget.config");
                 return;
@@ -90,7 +80,7 @@ namespace CentralPackageManagementMigrator.Runner
 
             var sources = nugetConfElem.Elements().Where(e => e.Name.LocalName == "packageSources").Single().Elements().Where(e => e.Name == "add").ToList();
 
-            if(sources.Count != 1)
+            if (sources.Count != 1)
             {
                 _logger.LogWarning("Cannot add source mapping you should do it maunally");
                 return;
@@ -105,7 +95,7 @@ namespace CentralPackageManagementMigrator.Runner
     </packageSource>
   </packageSourceMapping>");
 
-           
+
             nugetConfElem.Add(packageSourceMappingElement);
 
             nugetConfElem.SaveWithoutXmlDeclaration(nugetConfigFile);
@@ -141,7 +131,7 @@ namespace CentralPackageManagementMigrator.Runner
         {
             var prj = XElement.Load(projectAbsolutePath);
 
-            var packageReferenceElements = prj.Elements().Where(e => e.Name.LocalName =="ItemGroup").SelectMany(e => e.Elements().Where(e => e.Name.LocalName == "PackageReference")).ToList();
+            var packageReferenceElements = prj.Elements().Where(e => e.Name.LocalName == "ItemGroup").SelectMany(e => e.Elements().Where(e => e.Name.LocalName == "PackageReference")).ToList();
 
             var packageReferences = packageReferenceElements
                 .Where(elem => elem.Attribute("Include") != null)
@@ -172,11 +162,17 @@ namespace CentralPackageManagementMigrator.Runner
 
     }
 
-    
+
 
     public class CliOptions
     {
-        [Option('s', "Root path", Required = true, HelpText = "Solution full path")]
+        [Option('s', "Solution path", Required = true, HelpText = "Solution full path")]
         public string SolutionPath { get; set; }
+
+        [Option('p', "Project patterns", Required = false, HelpText = "Project Pattern (optional) will use *.csproj in any case")]
+        public IEnumerable<string> ProjectPatterns { get; set; }
+
+        [Option('n', "Add Source Mappings to nuget.config", Required = false, Default = true, HelpText = "Add Source Mappings only for nuget.config with one source otherwise fails")]
+        public bool AddSourceMappingsToNugetConfig { get; set; }
     }
 }

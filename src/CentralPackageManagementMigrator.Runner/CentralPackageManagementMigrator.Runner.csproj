@@ -8,7 +8,7 @@
 		<AssemblyName>CentralPackageManagementMigrator.Runner</AssemblyName>
 		<PackAsTool>true</PackAsTool>
 		<ToolCommandName>CpmMigrator</ToolCommandName>
-		<Version>0.1.1</Version>
+		<Version>0.2.0</Version>
 		<Authors>oshvartz</Authors>
 		<Owner>oshvartz</Owner>
 		<Description>Tool to migrate solution to use Central Package Management</Description>
@@ -25,7 +25,6 @@
 		<PackageReference Include="CommandLineParser" Version="2.9.1" />
 		<PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="6.0.0" />
 		<PackageReference Include="Microsoft.Extensions.Logging.Console" Version="6.0.0" />
-		<PackageReference Include="Microsoft.Build" Version="17.3.2" />
 	</ItemGroup>
 
 </Project>
