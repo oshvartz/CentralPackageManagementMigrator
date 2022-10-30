@@ -10,7 +10,8 @@ It's scanning all prject files by pattern given (-p)
 For each PackageRefence:
 * Create Directory.Packages.props file holding the package version
 * Remove version for all project files
-* Optional: update nuget config to state Source Mappings - only for on source  
+* Optional (on by default): update nuget config to state Source Mappings - only for nuget.config holding one source - learn about it at
+ [Package Source Mapping](https://learn.microsoft.com/en-us/nuget/consume-packages/package-source-mapping)
 
 
 ## How To Run
