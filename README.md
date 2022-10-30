@@ -6,7 +6,7 @@ learn about it [Central Package Management](https://learn.microsoft.com/en-us/nu
 
  [![NuGet](https://img.shields.io/nuget/v/CentralPackageManagementMigrator.Runner.svg)](https://www.nuget.org/packages/CentralPackageManagementMigrator.Runner/)
 
-It's scanning all prject files by pattern given (-p)
+It's scanning all project files by pattern given (-p)
 For each PackageRefence:
 * Create Directory.Packages.props file holding the package version
 * Remove version for all project files
