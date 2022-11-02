@@ -9,9 +9,10 @@
 		<PackAsTool>true</PackAsTool>
 		<ToolCommandName>CpmMigrator</ToolCommandName>
 		<PackageReadmeFile>README.md</PackageReadmeFile>
-		<Version>0.2.1</Version>
+		<Version>0.2.2</Version>
 		<Authors>oshvartz</Authors>
 		<Owner>oshvartz</Owner>
+		<PackageTags>nuget;Central Package Management;CPM</PackageTags>
 		<Description>Tool to migrate solution to use Central Package Management</Description>
 		<Title>CentralPackageManagementMigrator</Title>
 		<PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
@@ -26,7 +27,7 @@
 		<PackageReference Include="CommandLineParser" Version="2.9.1" />
 		<PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="6.0.0" />
 		<PackageReference Include="Microsoft.Extensions.Logging.Console" Version="6.0.0" />
-		<None Include="docs\README.md" Pack="true" PackagePath="\"/>
+		<None Include="docs\README.md" Pack="true" PackagePath="\" />
 	</ItemGroup>
 
 </Project>
