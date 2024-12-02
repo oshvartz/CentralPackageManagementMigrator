@@ -135,7 +135,7 @@ namespace CentralPackageManagementMigrator.Runner
 
             var packageReferences = packageReferenceElements
                 .Where(elem => elem.Attribute("Include") != null)
-                .Select(e => (Id: e.Attribute("Include").Value, Version: e.Attribute("Version") != null ? e.Attribute("Version").Value : e.Attribute("version").Value)).ToList();
+                .Select(PackageReferenceElementSelector).ToList();
 
             foreach (var packageReferenceElement in packageReferenceElements)
             {
@@ -143,9 +143,17 @@ namespace CentralPackageManagementMigrator.Runner
                 {
                     packageReferenceElement.Attribute("Version").Remove();
                 }
-                else
+                else if (packageReferenceElement.Attribute("version") != null)
                 {
                     packageReferenceElement.Attribute("version").Remove();
+                }
+                else if (packageReferenceElement.Element("Version") != null)
+                {
+                    packageReferenceElement.Element("Version").Remove();
+                }
+                else
+                {
+                    packageReferenceElement.Element("version").Remove();
                 }
             }
 
@@ -160,6 +168,16 @@ namespace CentralPackageManagementMigrator.Runner
             return (prj, projectAbsolutePath);
         }
 
+        private static (string Id, string Version) PackageReferenceElementSelector(XElement element)
+        {
+            var id = element.Attribute("Include").Value;
+
+            var attribute = element.Attribute("Version")?.Value ?? element.Attribute("version")?.Value ??
+                element.Element("Version")?.Value ?? element.Element("version")?.Value ??
+                throw new ArgumentException($"Version of {id} is missing!");
+
+            return (id, attribute);
+        }
     }
 
 
